@@ -4,40 +4,87 @@
  * Сделано задание на звездочку
  * Реализованы методы several и through
  */
-const isStar = true;
+const isStar = false;
+
+class EventListener {
+    constructor(student, action, period = 1) {
+        this.student = student;
+        this.action = action;
+        this.period = period;
+    }
+}
 
 /**
  * Возвращает новый emitter
  * @returns {Object}
  */
 function getEmitter() {
+    let events = new Map();
+
+    function addListener(event, listener) {
+        if (!events.has(event)) {
+            events.set(event, []);
+        }
+        events.get(event).push(listener);
+    }
+
+    function deleteListeners(event, listener) {
+        for (let key of events.keys()) {
+            if (key.startsWith(event + '.') || key === event) {
+                deleteAll(key, events.get(key), listener);
+            }
+        }
+    }
+
+    function deleteAll(event, listeners, listener) {
+        let newListeners = [];
+        for (let l of listeners) {
+            if (l.student !== listener.student) {
+                newListeners.push(l);
+            }
+        }
+        events.set(event, newListeners);
+    }
+
+    function commitEvent(event) {
+        let dotEvent = event + '.';
+        let keys = [];
+        for (let e of events.keys()) {
+            if (e + '.' === dotEvent || dotEvent.startsWith(e + '.')) {
+                keys.push(e);
+            }
+        }
+        for (let e of keys.sort().reverse()) {
+            callAll(events.get(e));
+        }
+    }
+
+    function callAll(listeners) {
+        for (let e of listeners) {
+            e.action.call(e.student);
+        }
+    }
+
     return {
 
-        /**
-         * Подписаться на событие
-         * @param {String} event
-         * @param {Object} context
-         * @param {Function} handler
-         */
         on: function (event, context, handler) {
-            console.info(event, context, handler);
+            let listener = new EventListener(context, handler);
+            addListener(event, listener);
+
+            return this;
         },
 
-        /**
-         * Отписаться от события
-         * @param {String} event
-         * @param {Object} context
-         */
         off: function (event, context) {
-            console.info(event, context);
+            let listener = new EventListener(context);
+            deleteListeners(event, listener);
+
+            return this;
         },
 
-        /**
-         * Уведомить о событии
-         * @param {String} event
-         */
         emit: function (event) {
-            console.info(event);
+            commitEvent(event);
+
+            return this;
         },
 
         /**
