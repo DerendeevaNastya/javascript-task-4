@@ -7,11 +7,11 @@
 const isStar = true;
 
 class EventListener {
-    constructor(student, action, through = 1, several = Infinity) {
+    constructor(student, action, options = { through: 1, several: Infinity }) {
         this.student = student;
         this.action = action;
-        this.through = through;
-        this.several = several;
+        this.through = options.through;
+        this.several = options.several;
         this.count = 0;
     }
 }
@@ -21,66 +21,63 @@ class EventListener {
  * @returns {Object}
  */
 function getEmitter() {
-    let events = new Map();
+    const events = new Map();
 
     function addListener(event, listener) {
         if (!events.has(event)) {
             events.set(event, []);
         }
-        events.get(event).push(listener);
+        events
+            .get(event)
+            .push(listener);
     }
 
     function deleteListeners(event, listener) {
-        for (let key of events.keys()) {
+        for (const key of events.keys()) {
             if (key.startsWith(event + '.') || key === event) {
-                deleteAll(key, events.get(key), listener);
+                deleteAll(key, listener);
             }
         }
     }
 
-    function deleteAll(event, listeners, listener) {
-        let newListeners = [];
-        for (let l of listeners) {
-            if (l.student !== listener.student) {
-                newListeners.push(l);
-            }
-        }
+    function deleteAll(event, listener) {
+        let newListeners = events
+            .get(event)
+            .filter(item => item.student !== listener.student);
         events.set(event, newListeners);
     }
 
     function commitEvent(event) {
-        let dotEvent = event + '.';
-        let keys = [];
-        for (let e of events.keys()) {
-            if (e + '.' === dotEvent || dotEvent.startsWith(e + '.')) {
-                keys.push(e);
-            }
-        }
-        for (let e of keys.sort().reverse()) {
-            callAll(events.get(e));
-        }
+        const dotEvent = event + '.';
+        Array.from(events.keys())
+            .filter(item => item + '.' === dotEvent || dotEvent.startsWith(item + '.'))
+            .sort()
+            .reverse()
+            .forEach(key => {
+                callAll(events.get(key));
+            });
     }
 
     function callAll(listeners) {
-        for (let e of listeners) {
-            if (e.several > e.count && e.count % e.through === 0) {
-                e.action.call(e.student);
+        for (const event of listeners) {
+            if (event.several > event.count && event.count % event.through === 0) {
+                event.action.call(event.student);
             }
-            e.count++;
+            event.count++;
         }
     }
 
     return {
 
         on: function (event, context, handler) {
-            let listener = new EventListener(context, handler);
+            const listener = new EventListener(context, handler);
             addListener(event, listener);
 
             return this;
         },
 
         off: function (event, context) {
-            let listener = new EventListener(context);
+            const listener = new EventListener(context);
             deleteListeners(event, listener);
 
             return this;
@@ -93,15 +90,16 @@ function getEmitter() {
         },
 
         several: function (event, context, handler, times) {
-            let listener = new EventListener(context, handler, 1, times <= 0 ? Infinity : times);
+            const options = { through: 1, several: times <= 0 ? Infinity : times };
+            const listener = new EventListener(context, handler, options);
             addListener(event, listener);
 
             return this;
         },
 
         through: function (event, context, handler, frequency) {
-            let listener = new EventListener(context, handler,
-                frequency <= 0 ? 1 : frequency, Infinity);
+            const options = { through: frequency <= 0 ? 1 : frequency, several: Infinity };
+            const listener = new EventListener(context, handler, options);
             addListener(event, listener);
 
             return this;
